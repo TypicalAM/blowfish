@@ -5,9 +5,9 @@ date: dd.mm.YYYY
 
 # Bootable containers
 
-Czyli ciekawe podejście do "immutable" systemów
+Czyli ciekawe podejście do linuksowych systemów "tylko do odczytu".
 
-## Jak mogę zobaczyć tą prezentację sam
+## Jak mogę zobaczyć tą prezentację?
 
 ```sh
 go install github.com/maaslalani/slides@v0.9.0
@@ -22,217 +22,277 @@ docker run -it --rm typicalam/presentation-viewer piaseczny.dev/docs/bootc.md
 
 ## Meta
 
-- Dziś: 19.11.2025
-- Przerywaj mi - lubię o tym gadać
+- Wszystko o czym dziś mówie to wolne oprogramowanie, ale mówić będę raczej szybko
 
 ---
 
-# Moje podejście do konfiguracji
+# Bootable containers
 
-## Stan na dziś
+## `whoami`
 
-- Zepsułem już wiele maszyn (obecna nazywa się tygrys20 a to autoincrement id)
-- Pracuję głównie na dwóch maszynach - thinkpad (mały) oraz lenovo legion 5 (duży)
-    - Chcę minimalizować ryzyko bycia w miejscu, gdzie nie mogę działać
-- Dotfiles istnieją, ale to nie wystarcza
-- Centralizacja bazowego stanu maszyny (nixos-config, ansible playbook, etc)
-- Nextcloud na najważniejsze ścieżki
-- Używam fedory od ~6 lat
+- DevSecOps @ Secawa
+- PUT - Linux Academy Group
+- P.I.W.O.
+- Koneser świnek morskich
 
 ---
 
-# Moje podejście do konfiguracji
-
-## Jakie to ma problemy?
-
-- Zamrożenie stanu systemu jest trudne
-    - Overhead full-system backupów (subwolumeny ruchliwe/nieruchliwe)
-    - Brak możliwości "specjalizacji" - NVIDIA, wirtualizacja
-- Dotfiles mogą ciągnąć ze sobą zbiór wymaganych aplikacji oraz kroków instalacyjnych, a są user-local
-- Nextcloud jest wolny przy full-disk pullach i trudno mu ogarnąć szybko zmienne pliki np. `bash_history`
-- Nix - błędy są nieczytelne, trudno skonfigurować tak jak się chce bez robienia warstwy translacji DSL konfiguracji apki -> nix. Przeklinam ludzi, którzy nie dają możliwości configu apki w yaml/lua/xml/json/etc. Sparzyłem się na robieniu desktopów NixOS, serwery są OK.
-- Chciałbym coś z rozruchem typu "A/B" (albo mechanizmem rollback)
-
----
-
-# Moje podejście do konfiguracji
-
-## Jak żyć?
-
-Jak zepsuję maszynę (a zepsuję) to potrzebuje zwykle jednego dnia na regenerację plików z nextclouda, instalowanie programów, dotfilesów oraz prasowanie nierównych rogów. Przez ten jeden dzień jestem przyklejony do komputera, na studiach robie SSH do serwera i tam klikam, ale jestem wtedy zależny od internetu. Czasem robie full-partition mirrory (używając `dd`, hell yeah) mając nadzieję, że jak czegoś nie będzie na nextcloudzie to tam zajrze (nie zajrze, zapomnę po tygodniu). 
-
----
-
-# Fedora atomic i universal blue
+# Bootable containers
 
 ## Co to jest?
 
-- Fedora oparta na "atomowej bazie", używająca immutable systemu bazowego, którego nie można ruszać*
-- Dalej używa RPM do paczek więc super :D
-- DNF nie działa :(
-- Ciekawe projekty downstreamowe: "Bazzite" dla steam decka, instalujesz i działa
-- Możliwość "przełączania się" między różnymi systemami
-- Rollbacki do poprzedniej "atomowej bazy" z poziomu bootloadera
-- Btrfs by default
-
-## Czy w chwili uniesienia po godzinie czytania zaryłem thinkpada?
-
-Tak lol
+Bootable containers to transport dla repozytorium OSTree. Koniec.
 
 ---
 
-# Fedora atomic i universal blue
+# Bootable containers
 
-## Co to ma pod spodem?
+## Co to jest?
 
-Trzy technologie:
-- Bootc (czyli "Bootable containers")
-- Podman (czyli "Docker niedocker")
-- OSTree (czyli ???)
-
-Te trzy rzeczy są ze sobą ściśle powiązane, ale po kolei.
+Super. Idziemy do domu.
 
 ---
 
 # OSTree
 
-## Czyli sposób zarządzania wersjami systemu operacyjnego
+## Co to jest?
 
-- Nasza maszyna ma repozytorium ostree (**mocno** inspirowane gitem)
-    - `ostree --repo=repo init`
-    - `ostree --repo=repo commit --branch=foo myfile`
-    - `ostree --repo=repo refs`
-    - `ostree --repo=repo ls foo`
-    - `ostree --repo=repo checkout foo tree-checkout/`
-- Jak sama nazwa wskazuje to repozytorium ma zarządzać naszym drzewem systemu (`/`)
-- Tylko `/etc` and `/var` są writable, reszta nie* (nie ma klasycznego `/home` oraz `/mnt`)
-- Initramfs bierze nasze argumenty kernela, znajduje gdzie jest target commit/branch oraz montuje go
-- Identyczne pliki w tym samym branchu ostree są hardlinkowane
+OSTree to system kontroli wersji dla systemów operacyjnych:
+
+- Każda wersja systemu to osobny commit
+- Upgrade polega na restarcie systemu i wybrania nowego commitu w bootloaderze
+- Aktualizacje systemu są atomowe - wszystko albo nic
 
 ---
 
 # OSTree
 
-## Atomowość tranzakcji systemowych
+## Przykładowe polecenia
 
-- Jak wprowadzamy zmianę w systemie (nowy commit), to możemy z niego stworzyć deployment 
-- Ten deployment siedzi jako bootentry w naszym GRUBie z innym argumentem `ostree`
-- Przerucamy się do zmienionego systemu podczas następnego rozruchu 
-- Z racji tego, że kernel jest zawarty w drzewie ostree jest automatycznie kopiowany, aby mógł go znaleźć bootloader
-
-## A co jak zepsuję?
-
-- Jak coś nie działa to możemy w bootloaderze po prostu wybrać drugą opcję analogicznie do
-    - Pokoleń w NixOS (gdzie pokoleń może być tyle co w kombii)
-    - Partycji rozruchu A/B w androdzie
-- Domyślnie w fedorze atomic deployowane są dwa ostatnie commity, ale można to zmienić, albo na stałe zapamiętać jeden commit (pinning).
+- `ostree --repo=repo init`
+- `ostree --repo=repo commit --branch=foo myfile`
+- `ostree --repo=repo refs`
+- `ostree --repo=repo ls foo`
+- `ostree --repo=repo checkout foo tree-checkout/`
 
 ---
 
 # OSTree
 
-## Co z `/etc`
+## Czemu nie git?
 
-`/etc` jest dość specjalną ścieżką, może być modyfikowana przez użytkownika jak i posiadać zmiany instalowane przez paczki. Jeżeli paczka instaluje serwis systemd to musi być jakoś obsłużone po stronie OSTree.
-- `ostree admin config-diff` pokazuje zmiany między bazą a naszymi ustawieniami
-- Każdy deployment oprócz read-only ostree ma zawartość katalogu `/etc`
-- Podczas tworzenia nowego deploymentu jest robiony merge między
-    - Katalogiem `/etc` starego deploymentu
-    - Katalogiem `/etc` aktualnego systemu
-    - Katalogiem `/etc` bazowego OSTree
-
-## Jak jest robiony home? mnt? /usr/local/bin?
+- Git nie śledzi atrybutów rozszerzonych (xattr)
+- Git nie śledzi pustych folderów
+- W gicie pracujemy i edytujemy sobie drzewo swobodnie, w OSTree checkoutujemy do folderu i lądują tam hardlinki
 
 ---
 
 # OSTree
 
-## Brzmi fajnie co? Ale co z paczkami
+## Desktryptywne zmiany
 
-Jak już wspomniałem dnf nie działa - zamiast tego jest rpm-ostree czyli warstwa integracyjna między RPM a OSTree (duh).
-- Package manager tworzy kolejne commity z nowymi paczkami jak je instalujemy/usuwamy
-- Deployuje nowy commit
-- Po każdej zmianie trzeba zrobić reboot (łee)
-- 3-way merge, checkout i nakładanie paczek kosztują czas, więc instalacja jest toporna
+- "Installed fastfetch"
+- "Modified the default kernel args"
+- "Introduced plymouth in initramfs"
+
+Notka na temat wprowadzania zmian - model server-side zamiast client-side.
 
 ---
 
-# Bootc + rpm-ostree
+# OSTree
 
-## Rozprowadzanie read-only części deploymentu jako obraz dockerowy
+## Jak to działa?
 
-Bootable containers, czyli kontenery rozruchowe pozwala nam rozprowadzać commity/deploymenty OSTree jako obrazy OCI (dockerowe).
+Mamy repo OSTree w `/ostree`, ostatnie dwa commity posiadają "deployment", czyli są dodane do bootloadera:
+- Fedora 43 commit a60ad395341 (OSTree 0) ma pozycję z argumentem kernela `ostree=/ostree/boot.0/fedora/a60ad395341`
+- Fedora 43 commit 2e2f9d38e11 (OSTree 1) ma pozycję z argumentem kernela `ostree=/ostree/boot.0/fedora/2e2f9d38e11`
 
-## Zalety
+Podczas rozruchu, jeszcze w initramfs, system znajduje wybrany przez nas commit oraz montuje go jako `/`. Jeżeli ten commit nie działa, to możemy zrestartować maszynę w poprzedni, działający stan. 
 
-- Obraz można wstawić na rejestr OCI (np DockerHub) i dzielić stan OSTree między różnymi maszynami!
-- To pozwala też nam w bardzo łatwy sposób trackować zmiany nie trzymając na jakiś webowym repozytorium OSTree dałego drzewa systemu, tylko używać technik znanych ze świata cloud-native oraz CI/CD do budowania obrazów.
-- Nagle możemy używać gita oraz Dockerfile!!!
+---
 
-```sh
-sudo rpm-ostree status
-sudo rpm-ostree rebase ostree-unverified-registry:docker.piaseczny.dev/machine/tygrys20:latest
+# OSTree
+
+## Używanie tego w praktyce
+
+W Fedorze istnieje helper o nazwie `rpm-ostree`, pozwalający na ułatwioną pracę z drzewem OSTree i robieniem takich rzeczy jak:
+
+- Instalowanie paczek
+- Upgrade systemu
+- Rebase na inny remote (możemy dosłownie mieć pobrane 3 dystrybucje naraz i przemieszczać się między nimi przez bootloader, mając ten sam `/home`)
+
+Niestety po każdej operacji potrzebny jest reboot.
+
+---
+
+# OSTree
+
+## Gdzie jest mój home skoro wszystko jest immutable?
+
+Wszystko jest w `/var` i `/etc`, reszta jest read-only:
+
+- `/home/adam` -> `/var/home/adam`
+- `/srv` -> `/var/srv`
+- `/opt` -> `/var/opt`
+
+Te ścieżki są dynamicznie podmontowane podczas rozruchu systemu. Dużą zaletą tego podejścia jest to, że cały "stan" systemu i wszystkie pliki użytkownika są w `/var`, więc łatwo to backupować.
+
+---
+
+# Bootable containers
+
+## Co to jest?
+
+Bootable containers to transport dla repozytorium OSTree. Koniec.
+
+---
+
+# Bootable containers
+
+## Co to jest?
+
+Super!!!
+
+---
+
+# Bootable containers
+
+## Co to jest?
+
+Ale nie tylko transport - bootc pozwala nam na używanie rejestru obrazów OCI jako remote w OSTree:
+
+[Rysunek](https://piaseczny.dev/posts/bootc/ostree-overview.png)
+
+Oficjalnie wchodzimy w strefę zieloną
+
+---
+
+# Bootable containers
+
+## Przykład użycia
+
+```Dockerfile
+FROM quay.io/fedora/fedora-kinoite:43
+
+# Add tailscale to the mix
+RUN dnf config-manager addrepo --from-repofile=https://pkgs.tailscale.com/stable/fedora/tailscale.repo
+RUN dnf install -y tailscale
+RUN systemctl enable tailscaled
+# Look for common issues, like stray files in /var
+RUN bootc container lint
 ```
 
 ---
 
-# Bootc + rpm-ostree
+# Bootable containers
 
-## Moje flow teraz
+## Przykład użycia
 
-Jeżeli robię zmianę systemową to oceniam czy ma ona wylądować w obrazie bazowym:
-- Jeżeli tak to backportuje ją do `Containerfile` na repo, robie rebase u siebie na nową wersję obrazu i mam tą zmianę natywnie (np część mojego etc staje się taka sama jest w bazowym obrazie, więc OSTree już nie będzie jej mergował).
-- Jeżeli nie to zostawiam ją jako "specjalizację" mojego systemu. Czyli mój system:
-    - Na thinkpadzie to obraz bazowy z OCI registry
-    - Na thinkpadzie to obraz bazowy + commity z NVIDIA/virt-manager/zaktualizowanymi paczkami
+```bash
+docker build -t typicalam/bootc:latest --push .
+sudo rpm-ostree rebase ostree-unverified-registry:docker.io/typicalam/bootc:latest
+```
 
-Jak potrzebuje użyć laptopa to po prostu robię na nim `rpm-ostree rebase`, zaciągam obraz i wszystko jest cacy
-
----
-
-# Powrót do moich problemów
-
-## Jakie to ma problemy?
-
-- Zamrożenie stanu systemu jest trudne
-    - Overhead full-system backupów (subwolumeny ruchliwe/nieruchliwe)
-    - Brak możliwości "specjalizacji" - NVIDIA, wirtualizacja
-- Dotfiles mogą ciągnąć ze sobą zbiór wymaganych aplikacji oraz kroków instalacyjnych, a są user-local
-- Nextcloud jest wolny przy full-disk pullach i trudno mu ogarnąć szybko zmienne pliki np. `bash_history`
-- Nix - Nie będę więcej nixa hejtował.
-- Chciałbym coś z rozruchem typu "A/B" (albo mechanizmem rollback)
+Po reboocie będziemy już w naszej nowej dystrybucji. Rebase robi nam lokalny "branch" `docker.io/typicalam/bootc:latest` i każdy następny "rpm-ostree upgrade" ściągnie nowy obraz z rejestru oraz doda go jako nowy commit.
 
 ---
 
-# Bootc + rpm-ostree
+# Bootable containers
 
-## Co ssie?
+## Instalacja na metal
 
-Moje przemyślenia po portowaniu wszystkiego:
+**`bootc install to-disk`** — instalacja bezpośrednio z działającego kontenera:
 
-- Użytkownicy i drift stanu, brak mechanizmu %post
-- Czasy budowania i rebaseowania
-- Cachowanie obrazów
-- Restarty oraz mounty
-- Brak wsparcia dla ESP only bootowania, musiałem oskryptować
-- Hyprland nie działa, a działał (xD)
-- SELinux zawsze enforced
-- Działa praktycznie tylko na RPM, nie DEB
+```bash
+sudo podman run --rm --privileged \
+  --pid=host --security-opt label=type:unconfined_t \
+  -v /dev:/dev -v /var/lib/containers:/var/lib/containers \
+  localhost/nuclear:latest \
+  bootc install to-disk /dev/sda
+```
 
 ---
 
-# Końcówka
+# Bootable containers
 
-## Co jest fajne?
+## Instalacja na metal
 
-- Rollbacki, można mieć system do gamingu (np bazzite) i system do robienia poważnych rzeczy
-- Mam spójny stan na obu maszynach
-- Github actions buduje mi system bazowy i mam to w jednym miejscu kodem
-- Mogę rozprowadzać system używając DockerHub/mojego OCI registry
-- YubiKey działa out of the box
-- Ścieżki ze stanem zmiennym systemu można łatwo backupować przyrostowo:
-    - Używamy `snapper`, żeby robić btrfs snapshoty diffa `/etc`, oraz `/var` (albo `/var/home`)
-    - Robimy skrypt, który bierze taki snapshot i puszcza na nim `restic`
-    - Yay!
+---
+
+# Bootable containers
+
+## Podpisywanie obrazów
+
+```bash
+# Podpisujemy obraz kluczem prywatnym
+cosign sign --key cosign.key docker.io/typicalam/nuclear:latest
+```
+
+W `/etc/containers/policy.json` definiujemy politykę weryfikacji podpisu:
+
+```json
+{"transports": {
+  "docker": {
+    "docker.io/typicalam/nuclear": [{
+      "type": "sigstoreSigned",
+      "keyPath": "/etc/pki/containers/nuclear.pub"
+    }]
+  }
+}}
+```
+
+`bootc upgrade` odmówi aktualizacji jeżeli podpis jest nieprawidłowy lub brakujący.
+
+---
+
+# Bootable containers
+
+## Zalety
+
+Teraz mamy:
+- Swoją własną dystrubucję Fedory 44 zbudowaną za pomocą prostego Dockerfile
+- Łatwy sposób na hostowanie naszej dystrybucji używając infrastruktury OCI
+- Jedno źródło prawdy dla naszej maszyny (lub stu maszyn)
+
+Ogólne zalety:
+- Rozszerzamy podejście infrastructure as code do maszyn desktopowych
+- Łatwe skanowanie obrazów używając gotowych narzędzi bezpieczeństwa
+- Brak potrzeby uczenia się nowych, skomplikowanych narzędzi (oczywiście jeżeli znamy dockera).
+
+---
+
+# Bootable containers
+
+## Wady
+
+- System jest domyślnie w trybie read-only - istnieje `sudo ostree admin unlock`, który pozwala nam jednorazowo mieć user-writable overlayfs (zmiany trwają tylko do ponownego uruchomienia).
+- System trzeba restartować przy aktualizacjach systemu
+- Instalowanie paczek jest całkiem wolne w porównaniu do `dnf` oraz `apt`. Jeszcze wolniej jak robimy to w obrazie kontenerowym.
+- Skupione wokół dystrybucji około-RHELowych, chociaż są projekty odpalające archa oraz debiana z bootc.
+
+---
+
+# Bootable containers
+
+## Jak ja tego używam
+
+- Mam repozytorium na [githubie](https://github.com/TypicalAM/nuclear) z CI
+- Co tydzień system pulluje nowy obraz i aktualizuje się w nocy
+- Backupy są bardzo proste. BTRFS snapshot z całego `/var` co godzinę i przyrostowe backupy na snapshocie używając `restic` 
+- Profit!
+
+---
+
+# Bootable containers
+
+## Czy ktoś w ogóle tego używa?
+
+Tak:
+
+- [Fedora Atomic](https://www.fedoraproject.org/atomic-desktops/)
+- [Bazzite](https://bazzite.gg/) - Dystrybucja na desktopy oraz steam decki do grania
+- [Moje repo](https://github.com/TypicalAM/nuclear) - Przykład mojego użycia w praktyce
+- [Bluefin](https://projectbluefin.io/) - Dystrybucja bootc dla deweloperów
+- [+ mój post z przykładami](https://piaseczny.dev/posts/bootc/)
 
 ## EOF
